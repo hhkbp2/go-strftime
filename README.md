@@ -1,7 +1,7 @@
 go-strftime
 ===========
 
-```go-strftime``` is a Golang library thtat implements the Python-like Time Format Function [```strftime()```][python-stftime].
+```go-strftime``` is a Golang library that implements the Python-like Time Format Function [```strftime()```][python-stftime].
 
 According to this discussion [Issue 444: Implement strftime][issue-444], in the eyes of the Golang designer, the ```strftime()``` is a bad interface and should be replaced by [```time.Format()```][time-format-golang] because the later one has a simpler format representation. However the formats could be used in ```time.Format()``` is strictly limited to a few pre-defined constants. Sometimes it would become error-prone and tricky to use the format right to produce what format programmers want exactly other than the pre-defineds.
 
@@ -9,7 +9,7 @@ So this library is created to provide a convenient interface for those who like 
 
 ### Usage
 
-Pull the code down using the standard go tool:
+Get the code down using the standard go tool:
 
 ```bash
 go get github.com/hhkbp2/go-strftime

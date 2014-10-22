@@ -55,7 +55,7 @@ func weekNumberFormatter(t time.Time) string {
 }
 
 // See http://docs.python.org/2/library/time.html#time.strftime
-var conv = map[string]FormatFunc{
+var formats = map[string]FormatFunc{
 	"%a": func(t time.Time) string { // Locale’s abbreviated weekday name
 		return t.Format("Mon")
 	},
@@ -98,10 +98,10 @@ var conv = map[string]FormatFunc{
 		return t.Format("05")
 	},
 	"%U": weekNumberFormatter, // Week number of the year
-	"%w": func(t time.Time) string {
+	"%W": weekNumberFormatter, // Week number of the year
+	"%w": func(t time.Time) string { // Weekday as a decimal number
 		return fmt.Sprintf("%d", t.Weekday())
 	},
-	"%W": weekNumberFormatter, // Week number of the year
 	"%x": func(t time.Time) string { // Locale’s appropriate date representation
 		return t.Format("01/02/06")
 	},
@@ -128,7 +128,7 @@ var (
 func initFormatRegexp() *regexp.Regexp {
 	var buf bytes.Buffer
 	buf.WriteString("%([%")
-	for format, _ := range conv {
+	for format, _ := range formats {
 		buf.WriteString(regexp.QuoteMeta(format[1:]))
 	}
 	buf.WriteString("]|[1-9]n)")
@@ -139,7 +139,7 @@ func initFormatRegexp() *regexp.Regexp {
 func initFormatBackquoteRegexp() *regexp.Regexp {
 	var buf bytes.Buffer
 	buf.WriteString("%([^")
-	for format, _ := range conv {
+	for format, _ := range formats {
 		buf.WriteString(regexp.QuoteMeta(format[1:]))
 	}
 	buf.WriteString("1-9]|[1-9][^n])")
@@ -179,7 +179,7 @@ func repl(match string, t time.Time) string {
 		return "%"
 	}
 
-	formatFunc, ok := conv[match]
+	formatFunc, ok := formats[match]
 	if ok {
 		return formatFunc(t)
 	}
@@ -222,7 +222,7 @@ func NewFormatter(format string) *Formatter {
 	strFormat = fmtRe.ReplaceAllStringFunc(strFormat, f1)
 	funs := make([]FormatFunc, 0, size)
 	f2 := func(match string) string {
-		f, ok := conv[match]
+		f, ok := formats[match]
 		if ok {
 			funs = append(funs, f)
 		}

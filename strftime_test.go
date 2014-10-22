@@ -43,10 +43,7 @@ var testCases = []*TestCase{
 
 func TestFormats(t *testing.T) {
 	for _, tc := range testCases {
-		value, err := Format(tc.format, testTime)
-		if err != nil {
-			t.Fatalf("error formatting %s - %s", tc.format, err)
-		}
+		value := Format(tc.format, testTime)
 		if value != tc.value {
 			t.Fatalf("error in %s: got %s instead of %s", tc.format, value, tc.value)
 		}
@@ -54,8 +51,8 @@ func TestFormats(t *testing.T) {
 }
 
 func TestUnknown(t *testing.T) {
-	_, err := Format("%g", testTime)
-	if err == nil {
-		t.Fatalf("managed to expand %g")
+	unknownFormat := "%g"
+	if unknownFormat != Format(unknownFormat, testTime) {
+		t.Fatalf("error to Format() unknown format: %s", unknownFormat)
 	}
 }

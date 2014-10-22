@@ -32,6 +32,7 @@ Note that %c returns RFC1123 which is a bit different from what Python does
 package strftime
 
 import (
+	"bytes"
 	"fmt"
 	"regexp"
 	"time"
@@ -41,31 +42,109 @@ const (
 	WEEK = time.Hour * 24 * 7
 )
 
-// See http://docs.python.org/2/library/time.html#time.strftime
-var conv = map[string]string{
-	"%a": "Mon",        // Locale’s abbreviated weekday name
-	"%A": "Monday",     // Locale’s full weekday name
-	"%b": "Jan",        // Locale’s abbreviated month name
-	"%B": "January",    // Locale’s full month name
-	"%c": time.RFC1123, // Locale’s appropriate date and time representation
-	"%d": "02",         // Day of the month as a decimal number [01,31]
-	"%H": "15",         // Hour (24-hour clock) as a decimal number [00,23]
-	"%I": "3",          // Hour (12-hour clock) as a decimal number [01,12]
-	"%m": "01",         // Month as a decimal number [01,12]
-	"%M": "04",         // Minute as a decimal number [00,59]
-	"%p": "PM",         // Locale’s equivalent of either AM or PM
-	"%S": "05",         // Second as a decimal number [00,61]
-	"%x": "01/02/06",   // Locale’s appropriate date representation
-	"%X": "15:04:05",   // Locale’s appropriate time representation
-	"%y": "06",         // Year without century as a decimal number [00,99]
-	"%Y": "2006",       // Year with century as a decimal number
-	"%Z": "MST",        // Time zone name (no characters if no time zone exists)
+type FormatFunc func(t time.Time) string
+
+func weekNumberFormatter(t time.Time) string {
+	start := time.Date(t.Year(), time.January, 1, 23, 0, 0, 0, time.UTC)
+	week := 0
+	for start.Before(t) {
+		week += 1
+		start = start.Add(WEEK)
+	}
+	return fmt.Sprintf("%02d", week)
 }
 
-var fmtRe *regexp.Regexp
+// See http://docs.python.org/2/library/time.html#time.strftime
+var conv = map[string]FormatFunc{
+	"%a": func(t time.Time) string { // Locale’s abbreviated weekday name
+		return t.Format("Mon")
+	},
+	"%A": func(t time.Time) string { // Locale’s full weekday name
+		return t.Format("Monday")
+	},
+	"%b": func(t time.Time) string { // Locale’s abbreviated month name
+		return t.Format("Jan")
+	},
+	"%B": func(t time.Time) string { // Locale’s full month name
+		return t.Format("January")
+	},
+	"%c": func(t time.Time) string { // Locale’s appropriate date and time representation
+		return t.Format(time.RFC1123)
+	},
+	"%d": func(t time.Time) string { // Day of the month as a decimal number [01,31]
+		return t.Format("02")
+	},
+	"%H": func(t time.Time) string { // Hour (24-hour clock) as a decimal number [00,23]
+		return t.Format("15")
+	},
+	"%I": func(t time.Time) string { // Hour (12-hour clock) as a decimal number [01,12]
+		return t.Format("3")
+	},
+	"%j": func(t time.Time) string {
+		start := time.Date(t.Year(), time.January, 1, 0, 0, 0, 0, time.UTC)
+		day := int(t.Sub(start).Hours()/24) + 1
+		return fmt.Sprintf("%03d", day)
+	},
+	"%m": func(t time.Time) string { // Month as a decimal number [01,12]
+		return t.Format("01")
+	},
+	"%M": func(t time.Time) string { // Minute as a decimal number [00,59]
+		return t.Format("04")
+	},
+	"%p": func(t time.Time) string { // Locale’s equivalent of either AM or PM
+		return t.Format("PM")
+	},
+	"%S": func(t time.Time) string { // Second as a decimal number [00,61]
+		return t.Format("05")
+	},
+	"%U": weekNumberFormatter, // Week number of the year
+	"%w": func(t time.Time) string {
+		return fmt.Sprintf("%d", t.Weekday())
+	},
+	"%W": weekNumberFormatter, // Week number of the year
+	"%x": func(t time.Time) string { // Locale’s appropriate date representation
+		return t.Format("01/02/06")
+	},
+	"%X": func(t time.Time) string { // Locale’s appropriate time representation
+		return t.Format("15:04:05")
+	},
+	"%y": func(t time.Time) string { // Year without century as a decimal number [00,99]
+		return t.Format("06")
+	},
+	"%Y": func(t time.Time) string { // Year with century as a decimal number
+		return t.Format("2006")
+	},
+	"%Z": func(t time.Time) string { // Time zone name (no characters if no time zone exists)
+		return t.Format("MST")
+	},
+}
 
-func init() {
-	fmtRe = regexp.MustCompile("%([%aAbBcdHIjmMpSUwWxXyYZ]|[1-9]n)")
+var (
+	//	fmtRe      = regexp.MustCompile("%([%aAbBcdHIjmMpSUwWxXyYZ]|[1-9]n)")
+	fmtRe          = initFormatRegexp()
+	fmtBackquoteRe = initFormatBackquoteRegexp()
+)
+
+func initFormatRegexp() *regexp.Regexp {
+	var buf bytes.Buffer
+	buf.WriteString("%([%")
+	for format, _ := range conv {
+		buf.WriteString(regexp.QuoteMeta(format[1:]))
+	}
+	buf.WriteString("]|[1-9]n)")
+	re := buf.String()
+	return regexp.MustCompile(re)
+}
+
+func initFormatBackquoteRegexp() *regexp.Regexp {
+	var buf bytes.Buffer
+	buf.WriteString("%([^")
+	for format, _ := range conv {
+		buf.WriteString(regexp.QuoteMeta(format[1:]))
+	}
+	buf.WriteString("1-9]|[1-9][^n])")
+	re := buf.String()
+	return regexp.MustCompile(re)
 }
 
 // A load from pkg/time/format.go of golang source code.
@@ -100,31 +179,13 @@ func repl(match string, t time.Time) string {
 		return "%"
 	}
 
-	format, ok := conv[match]
+	formatFunc, ok := conv[match]
 	if ok {
-		return t.Format(format)
+		return formatFunc(t)
 	}
-
-	switch match {
-	case "%j":
-		start := time.Date(t.Year(), time.January, 1, 0, 0, 0, 0, time.UTC)
-		day := int(t.Sub(start).Hours()/24) + 1
-		return fmt.Sprintf("%03d", day)
-	case "%w":
-		return fmt.Sprintf("%d", t.Weekday())
-	case "%W", "%U":
-		start := time.Date(t.Year(), time.January, 1, 23, 0, 0, 0, time.UTC)
-		week := 0
-		for start.Before(t) {
-			week += 1
-			start = start.Add(WEEK)
-		}
-
-		return fmt.Sprintf("%02d", week)
-	default: // %[1-9]n
-		size := int(match[1] - '0')
-		return string(formatNano(uint(t.Nanosecond()), size, false))
-	}
+	// %[1-9]n
+	size := int(match[1] - '0')
+	return string(formatNano(uint(t.Nanosecond()), size, false))
 }
 
 // Format return string with % directives expanded.
@@ -134,4 +195,54 @@ func Format(format string, t time.Time) string {
 		return repl(match, t)
 	}
 	return fmtRe.ReplaceAllStringFunc(format, fn)
+}
+
+type Formatter struct {
+	format     string
+	strFormat  string
+	formatFunc func(t time.Time) []interface{}
+}
+
+func NewFormatter(format string) *Formatter {
+	f := func(match string) string {
+		if match == "%%" {
+			return "%%"
+		}
+		return "%" + match
+	}
+	strFormat := fmtBackquoteRe.ReplaceAllStringFunc(format, f)
+	size := 0
+	f1 := func(match string) string {
+		if match == "%%" {
+			return "%%"
+		}
+		size++
+		return "%s"
+	}
+	strFormat = fmtRe.ReplaceAllStringFunc(strFormat, f1)
+	funs := make([]FormatFunc, 0, size)
+	f2 := func(match string) string {
+		f, ok := conv[match]
+		if ok {
+			funs = append(funs, f)
+		}
+		return match
+	}
+	fmtRe.ReplaceAllStringFunc(format, f2)
+	formatFunc := func(t time.Time) []interface{} {
+		result := make([]interface{}, 0, len(funs))
+		for _, f := range funs {
+			result = append(result, f(t))
+		}
+		return result
+	}
+	return &Formatter{
+		format:     format,
+		strFormat:  strFormat,
+		formatFunc: formatFunc,
+	}
+}
+
+func (self *Formatter) Format(t time.Time) string {
+	return fmt.Sprintf(self.strFormat, self.formatFunc(t)...)
 }

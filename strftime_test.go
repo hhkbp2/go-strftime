@@ -52,7 +52,27 @@ func TestFormats(t *testing.T) {
 
 func TestUnknown(t *testing.T) {
 	unknownFormat := "%g"
-	if unknownFormat != Format(unknownFormat, testTime) {
-		t.Fatalf("error to Format() unknown format: %s", unknownFormat)
+	value := Format(unknownFormat, testTime)
+	if unknownFormat != value {
+		t.Fatalf("error to in %s: got %s instead of %s", unknownFormat, value, unknownFormat)
+	}
+}
+
+func TestFormatter_ValidFormats(t *testing.T) {
+	for _, tc := range testCases {
+		formatter := NewFormatter(tc.format)
+		value := formatter.Format(testTime)
+		if value != tc.value {
+			t.Fatalf("error in %s: got %s instead of %s", tc.format, value, tc.value)
+		}
+	}
+}
+
+func TestFormatter_InvalidFormats(t *testing.T) {
+	unknownFormat := "%g"
+	formatter := NewFormatter(unknownFormat)
+	value := formatter.Format(testTime)
+	if unknownFormat != value {
+		t.Fatalf("error to in %s: get %s instead of %s", unknownFormat, value, unknownFormat)
 	}
 }

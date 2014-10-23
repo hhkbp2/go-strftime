@@ -173,6 +173,12 @@ func formatNano(nanosec uint, n int, trim bool) []byte {
 	return buf[:n]
 }
 
+func formatNanoForMatch(match string, t time.Time) string {
+	// format nanosecond for a match format %[1-9]n
+	size := int(match[1] - '0')
+	return string(formatNano(uint(t.Nanosecond()), size, false))
+}
+
 // repl replaces % directives with right time
 func repl(match string, t time.Time) string {
 	if match == "%%" {
@@ -183,9 +189,7 @@ func repl(match string, t time.Time) string {
 	if ok {
 		return formatFunc(t)
 	}
-	// %[1-9]n
-	size := int(match[1] - '0')
-	return string(formatNano(uint(t.Nanosecond()), size, false))
+	return formatNanoForMatch(match, t)
 }
 
 // Format return string with % directives expanded.
@@ -206,7 +210,7 @@ type Formatter struct {
 func NewFormatter(format string) *Formatter {
 	f := func(match string) string {
 		if match == "%%" {
-			return "%%"
+			return match
 		}
 		return "%" + match
 	}
@@ -214,7 +218,7 @@ func NewFormatter(format string) *Formatter {
 	size := 0
 	f1 := func(match string) string {
 		if match == "%%" {
-			return "%%"
+			return match
 		}
 		size++
 		return "%s"
@@ -222,8 +226,16 @@ func NewFormatter(format string) *Formatter {
 	strFormat = fmtRe.ReplaceAllStringFunc(strFormat, f1)
 	funs := make([]FormatFunc, 0, size)
 	f2 := func(match string) string {
+		if match == "%%" {
+			return match
+		}
 		f, ok := formats[match]
 		if ok {
+			funs = append(funs, f)
+		} else {
+			f := func(t time.Time) string {
+				return formatNanoForMatch(match, t)
+			}
 			funs = append(funs, f)
 		}
 		return match

@@ -32,9 +32,15 @@ var testCases = []*TestCase{
 	&TestCase{"%y", "09"},
 	&TestCase{"%Y", "2009"},
 	&TestCase{"%Z", "UTC"},
+	&TestCase{"%3n", "000"},
+	&TestCase{"%6n", "000000"},
+	&TestCase{"%9n", "000000003"},
 
 	// Escape
 	&TestCase{"%%%Y", "%2009"},
+	&TestCase{"%3%%", "%3%"},
+	&TestCase{"%3%3n", "%3000"},
+	&TestCase{"%3xy%3n", "%3xy000"},
 	// Embedded
 	&TestCase{"/path/%Y/%m/report", "/path/2009/11/report"},
 	//Empty

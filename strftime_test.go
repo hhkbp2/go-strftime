@@ -1,6 +1,7 @@
 package strftime
 
 import (
+	"bytes"
 	"testing"
 	"time"
 )
@@ -71,6 +72,11 @@ func TestFormatter_ValidFormats(t *testing.T) {
 		if value != tc.value {
 			t.Fatalf("error in %s: got %s instead of %s", tc.format, value, tc.value)
 		}
+		buf := bytes.NewBuffer(make([]byte, 0, 0))
+		formatter.FormatTo(buf, testTime)
+		if string(buf.Bytes()) != tc.value {
+			t.Fatalf("error in %s: got %s instead of %s", tc.format, value, tc.value)
+		}
 	}
 }
 
@@ -78,6 +84,11 @@ func TestFormatter_InvalidFormats(t *testing.T) {
 	unknownFormat := "%g"
 	formatter := NewFormatter(unknownFormat)
 	value := formatter.Format(testTime)
+	if unknownFormat != value {
+		t.Fatalf("error to in %s: get %s instead of %s", unknownFormat, value, unknownFormat)
+	}
+	buf := bytes.NewBuffer(make([]byte, 0, 0))
+	formatter.FormatTo(buf, testTime)
 	if unknownFormat != value {
 		t.Fatalf("error to in %s: get %s instead of %s", unknownFormat, value, unknownFormat)
 	}

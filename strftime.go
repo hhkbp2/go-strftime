@@ -34,6 +34,7 @@ package strftime
 import (
 	"bytes"
 	"fmt"
+	"io"
 	"regexp"
 	"time"
 )
@@ -201,6 +202,11 @@ func Format(format string, t time.Time) string {
 	return fmtRe.ReplaceAllStringFunc(format, fn)
 }
 
+func FormatTo(w io.Writer, format string, t time.Time) (n int, err error) {
+	result := Format(format, t)
+	return w.Write([]byte(result))
+}
+
 type Formatter struct {
 	format     string
 	strFormat  string
@@ -257,4 +263,8 @@ func NewFormatter(format string) *Formatter {
 
 func (self *Formatter) Format(t time.Time) string {
 	return fmt.Sprintf(self.strFormat, self.formatFunc(t)...)
+}
+
+func (self *Formatter) FormatTo(w io.Writer, t time.Time) (n int, err error) {
+	return fmt.Fprintf(w, self.strFormat, self.formatFunc(t)...)
 }
